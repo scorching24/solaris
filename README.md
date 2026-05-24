@@ -7,4 +7,8 @@ A minimalist, text-based post-apocalyptic incremental game built with Next.js, R
 - Styling: Tailwind CSS v4
 - State Management: Custom React hook engine using ('useGameState')
   
-0.1.0 - 5/24/26 
+## Changelog
+0.1.0 - 5/24/26:
+- Game structure is built with save/load/reset features and smooth and safe UI using 'useGameState'
+- Three actions and 5 resources
+
