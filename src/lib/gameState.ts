@@ -5,6 +5,12 @@ export type Resources = Record<Resource,number>
 export type Unlocks = {
     salvageTechTrash : boolean;
     craftCircuitry: boolean;
+    craftBattery: boolean;
+    operatePumpjack: boolean;
+    craftCopperPiping: boolean;
+    craftCoolingModule: boolean;
+    craftedCoolingModule: boolean;
+    refineCrudeOil: boolean;
     mars: boolean;
 };
 
@@ -25,12 +31,18 @@ export const initialState: GameState = {
         copperWire : 0,
         silicon : 0,
         circuitry: 0,
-        crudeOil: 0,
         battery: 0,
+        copperPiping: 0,
+        crudeOil: 0,
     },
     unlocks: {
         salvageTechTrash: false,
         craftCircuitry: false,
+        craftBattery: false,
+        operatePumpjack: false,
+        craftCopperPiping: false,
+        craftCoolingModule: false,
+        craftedCoolingModule: false,
         mars: false,
     },
     cooldowns: {},
