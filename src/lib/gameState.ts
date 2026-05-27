@@ -43,6 +43,7 @@ export const initialState: GameState = {
         craftCopperPiping: false,
         craftCoolingModule: false,
         craftedCoolingModule: false,
+        refineCrudeOil: false,
         mars: false,
     },
     cooldowns: {},

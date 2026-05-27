@@ -12,3 +12,9 @@ A minimalist, text-based post-apocalyptic incremental game built with Next.js, R
 - Game structure is built with save/load/reset features and smooth and safe UI using 'useGameState'
 - Three actions and 5 resources
 
+0.1.1 - 5/26/2026:
+- Added music with mute/unmute footer (credits to DM DOKURO)
+- Added crafting of batteries, copper piping, and a cooling module
+- Added operate pumpjack to generate crude oil
+- Actions are now separated by groups: field operations and crafting
+
