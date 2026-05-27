@@ -12,15 +12,15 @@ A minimalist, text-based post-apocalyptic incremental game built with Next.js, R
 - Game structure is built with save/load/reset features and smooth and safe UI using 'useGameState'
 - Added scavenge scrap, salvage tech trash, and craft circuitry
 - Added metal scrap, tech trash, copper wire, silicon, and circuitry
-0.2.0 - 5/26/26:
+0.1.1 - 5/26/26:
 - Added music with mute/unmute footer (credits to DM DOKURO)
 - Added crafting of batteries, copper piping, and a cooling module
 - Added operate pumpjack to generate crude oil
 - Actions are now separated by groups: field operations and crafting
+0.1.2 - 5/26/26:
+- Added the crafting of a cooling module to unlock a new feature: crude oil refinery.
+- Added petrochemicals, heavy residue, and petroleum coke.
+- Added a crude oil refinery minigame. (inspired by Stardew Valley fishing mechanics)
+- Added 1 new song to the OST.
 
-0.1.1 - 5/26/2026:
-- Added music with mute/unmute footer (credits to DM DOKURO)
-- Added crafting of batteries, copper piping, and a cooling module
-- Added operate pumpjack to generate crude oil
-- Actions are now separated by groups: field operations and crafting
 

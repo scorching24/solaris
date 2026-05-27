@@ -6,13 +6,14 @@ import LogPanel from '@/components/ui/LogPanel';
 import ResourceBar from '@/components/ui/ResourceBar';
 
 const PLANET_MUSIC: Record<string, string[]> = {
-    earth: ['/music/earth1.mp3', '/music/earth2.mp3'],
+    earth: ['/music/1sec_silence.mp3','/music/earth2.mp3', '/music/earth3.mp3', '/music/earth1.mp3'],
 };
 
 const EARTH_FIELD_BUTTONS = [
     { label: 'scavenge for metal', actionId: 'scavengeMetal' },
     { label: 'salvage tech trash', actionId: 'salvageTechTrash'},
     { label: 'operate pumpjack [1 battery]', actionId: 'operatePumpjack'},
+    { label: 'refine crude oil [15 crude]', actionId: 'refineCrudeOil'},
 ];
 
 const EARTH_CRAFTING_BUTTONS = [
@@ -25,12 +26,29 @@ const EARTH_CRAFTING_BUTTONS = [
 export default function GameBoard() {
     const { state, doAction, save, reset } = useGameState();
     const [isMuted, setIsMuted] = useState<boolean>(false);
+    
+    const [isRefining, setIsRefining] = useState<boolean>(false);
+    const [successCounter, setSuccessCounter] = useState<number>(0);
+
+    const [spikePos, setSpikePos] = useState<number>(50);
+    const [barPos, setBarPos] = useState<number>(40);
+    const barWidth = 18;
 
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const currentTrackIndexRef = useRef<number>(0);
     const activePlanetRef = useRef<string>('');
-    
     const isMutedRef = useRef<boolean>(false);
+
+    const isPressingRef = useRef<boolean>(false);
+    const minigameFrameRef = useRef<number | null>(null);
+
+    const barPosRef = useRef<number>(40);
+    const barVelocityRef = useRef<number>(0);
+    const spikePosRef = useRef<number>(0);
+    const spikeVelocityRef = useRef<number>(0);
+    const targetSpikePosRef = useRef<number>(50);
+    const targetTimerRef = useRef<number>(0);
+    const successRef = useRef<number>(0);
 
     useEffect(() => {
         isMutedRef.current = isMuted;
@@ -92,6 +110,85 @@ export default function GameBoard() {
         };
     }, [state.currentPlanet]); 
 
+    useEffect(() => {
+        if (!isRefining) {
+            if (minigameFrameRef.current) cancelAnimationFrame(minigameFrameRef.current);
+            return;
+        }
+
+        barPosRef.current = 40;
+        barVelocityRef.current = 0;
+        spikePosRef.current = 50;
+        spikeVelocityRef.current = 0;
+        targetSpikePosRef.current = 50;
+        targetTimerRef.current = 0;
+        successRef.current = 0;
+
+        const updatePhysics = () => {
+            targetTimerRef.current -=1;
+            if (targetTimerRef.current <= 0) {
+                targetSpikePosRef.current = Math.random() * 100;
+                targetTimerRef.current = Math.floor(Math.random() * 120) + 100;
+            }
+
+            spikeVelocityRef.current += (targetSpikePosRef.current - spikePosRef.current) * 0.01;
+            spikeVelocityRef.current *= 0.85;
+            spikePosRef.current += spikeVelocityRef.current;
+
+            if (spikePosRef.current < 0) spikePosRef.current = 0;
+            if (spikePosRef.current > 100) spikePosRef.current = 100;
+
+            if (isPressingRef.current) {
+                barVelocityRef.current += 0.15;
+            } else {
+                barVelocityRef.current -= 0.12;
+            }
+            
+            barVelocityRef.current = Math.max(-2.5, Math.min(2.5, barVelocityRef.current));
+            barVelocityRef.current *= 0.85;
+
+            barPosRef.current += barVelocityRef.current;
+
+            if (barPosRef.current <= 0) {
+                barPosRef.current = 0;
+                barVelocityRef.current = 0;
+            }
+            const maxRightBoundary = 100 - barWidth;
+            if (barPosRef.current >= maxRightBoundary) {
+                barPosRef.current = maxRightBoundary;
+                barVelocityRef.current = 0;
+            }
+
+            const isInsideWindow = spikePosRef.current >= barPosRef.current && spikePosRef.current <= (barPosRef.current + barWidth);
+
+            if (isInsideWindow) {
+                successRef.current = Math.min(100, successRef.current + 0.5);
+            } else {
+                successRef.current = Math.max(0, successRef.current - 0.3);
+            }
+
+            setSpikePos(spikePosRef.current);
+            setBarPos(barPosRef.current);
+            setSuccessCounter(Math.floor(successRef.current));
+
+            if (successRef.current >= 100) {
+                setIsRefining(false);
+                doAction('refineCrudeOilSuccess');
+                return;
+            }
+
+            minigameFrameRef.current = requestAnimationFrame(updatePhysics);
+        };
+
+        minigameFrameRef.current = requestAnimationFrame(updatePhysics)
+
+        return () => {
+            if (minigameFrameRef.current) cancelAnimationFrame(minigameFrameRef.current);
+        };
+
+    }, [isRefining, doAction, barWidth]);
+
+    
     const isUnlocked = (actionId: string): boolean => {
         switch (actionId) {
             case 'scavengeMetal': return true;
@@ -101,9 +198,11 @@ export default function GameBoard() {
             case 'operatePumpjack': return state.unlocks.operatePumpjack;
             case 'craftCopperPiping': return state.unlocks.craftCopperPiping;
             case 'craftCoolingModule': return state.unlocks.craftCoolingModule;
+            case 'refineCrudeOil': return state.unlocks.refineCrudeOil;
             default: return false;
         }
     };
+
 
     const isDisabled = (actionId: string): boolean => {
         switch (actionId) {
@@ -121,6 +220,8 @@ export default function GameBoard() {
                 return state.resources.scrapMetal < 7 || state.resources.copperWire < 2 || state.resources.crudeOil < 3;
             case 'craftCoolingModule':
                 return state.resources.circuitry < 2 || state.resources.copperPiping < 6 || state.resources.battery < 1;
+            case 'refineCrudeOil':
+                return state.resources.crudeOil < 15;
             default: 
                 return false;
         }
@@ -129,11 +230,16 @@ export default function GameBoard() {
     const hasUnlockedCrafting = EARTH_CRAFTING_BUTTONS.some(btn => isUnlocked(btn.actionId));
 
     const handleButtonClick = (actionId: string) => {
-        doAction(actionId);
-        if (audioRef.current && audioRef.current.paused) {
-            audioRef.current.play().catch(err => console.log("wake up link pending", err));
-        }
-    };
+            if (actionId === 'refineCrudeOil') {
+                setIsRefining(true);
+                return;
+            }
+
+            doAction(actionId);
+            if (audioRef.current && audioRef.current.paused) {
+                audioRef.current.play().catch(err => console.log("Audio gesture bypassed", err));
+            }
+        };
 
     return (
         <main className='min-h-screen bg-black text-white flex justify-center px-6 py-12'>
@@ -209,8 +315,67 @@ export default function GameBoard() {
                         {isMuted ? 'unmute' : 'mute'}
                     </button>
                 </div>
-                
             </div> 
+
+            {isRefining &&(
+                <div className='fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 font-mono text-xs select-none animate-fadeIn'>
+                    <div className='w-full max-w-sm bg-zinc-950 border border-zinc-800 p-6 rounded flex flex-col gap-5 shadow-2xl'>
+                        <div className='flex justify-between items-center border-b border-zinc-900 pb-3'>
+                            <span className='text-zinc-400 font-bold uppercase tracking-wider text-[10px]'>OIL REFINING</span>
+                            <span className='text-amber-700 font-bold animate-pulse text-[9px]'>solaris</span>
+                        </div>
+
+                        <div className='flex flex-col gap-3 w-full'>
+                            <div className='w-full h-12 bg-zinc-900 border border-zinc-800 rounded relative overflow-hidden'>
+                                <div className='absolute top-0 bottom-0 bg-emerald-500/20 border-x-2 border-emerald-400 flex items-center justify-center'
+                                style={{
+                                    left: `${barPos}%`,
+                                    width: `${barWidth}%`
+                                }}
+                            >
+                            </div>
+
+                            <div
+                                className='absolute top-2 bottom-2 w-3 bg-red-500 rounded border border-white shadow-[0_0_10px_rgba(239,68,68,0.8)] flex items-center justify-center'
+                                style={{ left: `${spikePos}%` }}
+                            >
+                            </div>
+
+                        </div>
+                        <div className='w-full h-3 bg-zinc-900 border border-zinc-800 rounded relative overflow-hidden flex justify-start items-stretch'>
+                            <div
+                                className='h-full bg-gradient-to-r from-zinc-900 to-zinc-400 shadow-[0_0_8px_rgba(16,185,129,0.4)]'
+                                style={{ width: `${successCounter}%`}}
+                            />
+                            </div>
+                        </div>
+                        
+                        <div className='text-[10px] text-zinc-500 text-center italic leading-normal px-2'>
+                            hold/tap the refinery button to keep the proper amount of coolant to maintain temperature regulation
+                        </div>
+
+                        <div className='flex flex-col gap-2'>
+                            <button 
+                                onMouseDown={() => { isPressingRef.current = true; }}
+                                onMouseUp={() => { isPressingRef.current = false; }}
+                                onMouseLeave={() => { isPressingRef.current = false; }}
+                                onTouchStart={() => { isPressingRef.current = true; }}
+                                onTouchEnd={() => { isPressingRef.current = false; }}
+                                className='w-full bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-white py-4 rounded active:bg-black transition-colors cursor-pointer font-bold uppercase tracking-wider text-[11px] select-none touch-none'
+                            >
+                                increase coolant pressure
+                            </button>
+
+                            <button
+                                onClick={() => setIsRefining(false)}
+                                className='w-full text-center text-[10px] text-zinc-600 hover:text-zinc-400 transition-colors pt-1 cursor-pointer'
+                            >
+                                abort fractionation
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </main>
     );
 }

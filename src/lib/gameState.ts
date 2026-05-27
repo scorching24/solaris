@@ -34,6 +34,9 @@ export const initialState: GameState = {
         battery: 0,
         copperPiping: 0,
         crudeOil: 0,
+        petrochemicals: 0,
+        heavyResidue: 0,
+        petroleumCoke: 0,
     },
     unlocks: {
         salvageTechTrash: false,

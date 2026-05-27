@@ -64,6 +64,10 @@ export function useGameState() {
             currentLog = addLog(currentLog, 'resources requried to craft cooling module deemed feasible.')
         }
 
+        if (!u.refineCrudeOil && u.craftedCoolingModule) {
+            u.refineCrudeOil = true;
+        }
+
         return { unlocks: u, log: currentLog };
         
     }, []);
@@ -162,6 +166,19 @@ export function useGameState() {
                     next.resources.battery -= 1;
                     next.unlocks.craftedCoolingModule = true;
                     message = 'you integrate the cooling module into the refinery. it is now operational!'
+                    break;
+                
+                case 'refineCrudeOil':
+                    if (next.resources.crudeOil < 15) {
+                        return prev;
+                    }
+                
+                case 'refineCrudeOilSuccess':
+                    next.resources.crudeOil -= 15;
+                    next.resources.petrochemicals += 67;
+                    next.resources.petroleumCoke += 67;
+                    next.resources.heavyResidue += 67;
+                    message = 'you successfully refine crude oil into three useful resources.'
                     break;
 
                 default:

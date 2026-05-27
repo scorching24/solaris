@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "solaris",
+  title: "SOLARIS",
   description: "minimalist text-based post-apocalyptic incremental space game.",
 };
 
