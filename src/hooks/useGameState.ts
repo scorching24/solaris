@@ -68,6 +68,11 @@ export function useGameState() {
             u.refineCrudeOil = true;
         }
 
+        if (!u.forgeRefinedAlloy && u.forgeRefinedAlloy) {
+            u.forgeRefinedAlloy = true;
+            currentLog = addLog(currentLog, 'refine alloy can now be forged using new detected chemicals!')
+        }
+
         return { unlocks: u, log: currentLog };
         
     }, []);
@@ -175,12 +180,26 @@ export function useGameState() {
                 
                 case 'refineCrudeOilSuccess':
                     next.resources.crudeOil -= 15;
-                    next.resources.petrochemicals += 67;
-                    next.resources.petroleumCoke += 67;
-                    next.resources.heavyResidue += 67;
-                    message = 'you successfully refine crude oil into three useful resources.'
+                    next.resources.petrochemicals += 7;
+                    next.resources.petroleumCoke += 5;
+                    next.resources.heavyResidue += 3;
+                    next.unlocks.forgeRefinedAlloy = true;
+                    message = 'you successfully refined the crude oil.'
                     break;
-
+                
+                case 'forgeRefinedAlloy':
+                    if (next.resources.scrapMetal < 10 || next.resources.petroleumCoke < 2 || next.resources.heavyResidue < 1) {
+                        return prev;
+                    }
+                
+                case 'forgeRefinedAlloySuccess':
+                    next.resources.heavyResidue -= 1;
+                    next.resources.petroleumCoke -= 2;
+                    next.resources.scrapMetal -= 15;
+                    next.resources.refinedAlloy += 67;
+                    message = 'the refined alloy was forged successfully!'
+                    break;
+                    
                 default:
                     return prev;
                 

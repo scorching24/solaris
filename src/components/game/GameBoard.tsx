@@ -14,6 +14,7 @@ const EARTH_FIELD_BUTTONS = [
     { label: 'salvage tech trash', actionId: 'salvageTechTrash'},
     { label: 'operate pumpjack [1 battery]', actionId: 'operatePumpjack'},
     { label: 'refine crude oil [15 crude]', actionId: 'refineCrudeOil'},
+    { label: 'forge refined alloy [15 scrap, 2 petroleum coke, 1 heavy residue]', actionId: 'forgeRefinedAlloy'},
 ];
 
 const EARTH_CRAFTING_BUTTONS = [
@@ -34,11 +35,16 @@ export default function GameBoard() {
     const [barPos, setBarPos] = useState<number>(40);
     const barWidth = 18;
 
+    const [isForging, setIsForging] = useState<boolean>(false);
+    const [forgeCharge, setForgeCharge] = useState<number>(0);
+    const [forgeStrikes, setForgeStrikes] = useState<number>(0);
+    const [targetMin, setTargetMin] = useState<number>(60);
+    const [targetMax, setTargetMax] = useState<number>(82);
+
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const currentTrackIndexRef = useRef<number>(0);
     const activePlanetRef = useRef<string>('');
     const isMutedRef = useRef<boolean>(false);
-
     const isPressingRef = useRef<boolean>(false);
     const minigameFrameRef = useRef<number | null>(null);
 
@@ -49,6 +55,9 @@ export default function GameBoard() {
     const targetSpikePosRef = useRef<number>(50);
     const targetTimerRef = useRef<number>(0);
     const successRef = useRef<number>(0);
+
+    const forgeChargeRef = useRef<number>(0);
+    const forgeDirectionRef = useRef<number>(1);
 
     useEffect(() => {
         isMutedRef.current = isMuted;
@@ -188,7 +197,71 @@ export default function GameBoard() {
 
     }, [isRefining, doAction, barWidth]);
 
+    useEffect(() => {
+        if (!isForging) {
+            if (minigameFrameRef.current && !isRefining) cancelAnimationFrame(minigameFrameRef.current);
+            return;
+        }
+
+        forgeChargeRef.current = 0;
+        forgeDirectionRef.current = 1;
+        setForgeStrikes(0);
+        generateNewForgeWindow();
+
+        const updateForgePhysics = () => {
+            forgeChargeRef.current += (1.2 * forgeDirectionRef.current);
+
+            if (forgeChargeRef.current >= 100) {
+                forgeChargeRef.current = 100;
+                forgeDirectionRef.current = -1;
+            } else if (forgeChargeRef.current <= 0) {
+                forgeChargeRef.current = 0;
+                forgeDirectionRef.current = 1;
+            }
+
+            setForgeCharge(forgeChargeRef.current);
+            minigameFrameRef.current = requestAnimationFrame(updateForgePhysics);
+
+        };
+
+        minigameFrameRef.current = requestAnimationFrame(updateForgePhysics);
+
+        return () => {
+            if (minigameFrameRef.current) cancelAnimationFrame(minigameFrameRef.current);
+        };    
+    }, [isForging]);
+
+    const generateNewForgeWindow = () => {
+        const min = Math.floor(Math.random() * 50) + 15;
+        setTargetMin(min);
+        setTargetMax(min + 22);  // AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+    };
     
+    const handleForgeStrike = () => {
+        const exactCharge = forgeChargeRef.current;
+        const isMovingRight = forgeDirectionRef.current > 0;
+
+        const latencyOffset = 20;
+
+        const effectiveMin = isMovingRight ? targetMin : targetMin - latencyOffset;
+        const effectiveMax = isMovingRight ? targetMax + latencyOffset : targetMax;
+
+        if (exactCharge >= effectiveMin && exactCharge <= effectiveMax) {
+            const nextStrikes = forgeStrikes + 1;
+            setForgeStrikes(nextStrikes);
+
+            if (nextStrikes >= 3) {
+                setIsForging(false);
+                doAction('forgeRefinedAlloySuccess');
+            } else {
+                generateNewForgeWindow();
+            }
+        } else {
+            setForgeStrikes(0);
+            generateNewForgeWindow();
+        }
+    };
+
     const isUnlocked = (actionId: string): boolean => {
         switch (actionId) {
             case 'scavengeMetal': return true;
@@ -199,6 +272,7 @@ export default function GameBoard() {
             case 'craftCopperPiping': return state.unlocks.craftCopperPiping;
             case 'craftCoolingModule': return state.unlocks.craftCoolingModule;
             case 'refineCrudeOil': return state.unlocks.refineCrudeOil;
+            case 'forgeRefinedAlloy': return state.unlocks.forgeRefinedAlloy;
             default: return false;
         }
     };
@@ -222,6 +296,8 @@ export default function GameBoard() {
                 return state.resources.circuitry < 2 || state.resources.copperPiping < 6 || state.resources.battery < 1;
             case 'refineCrudeOil':
                 return state.resources.crudeOil < 15;
+            case 'forgeRefinedAlloy':
+                return state.resources.scrapMetal < 15 || state.resources.petroleumCoke < 2 || state.resources.heavyResidue < 1;
             default: 
                 return false;
         }
@@ -235,6 +311,11 @@ export default function GameBoard() {
                 return;
             }
 
+            if (actionId === 'forgeRefinedAlloy') {
+                setIsForging(true);
+                return;
+            }
+
             doAction(actionId);
             if (audioRef.current && audioRef.current.paused) {
                 audioRef.current.play().catch(err => console.log("Audio gesture bypassed", err));
@@ -245,7 +326,7 @@ export default function GameBoard() {
         <main className='min-h-screen bg-black text-white flex justify-center px-6 py-12'>
             <div className='w-full max-w-md flex flex-col gap-10'>
                 <div>
-                    <h1 className='text-xs font-mono text-zinc-600 uppercase tracking-widest'>
+                    <h1 className='text-xs font-bold animate-pulse text-amber-700 uppercase tracking-widest'>
                         solaris
                     </h1>
                     <p className='text-xs font-mono text-zinc-700 mt-1'>
@@ -322,7 +403,7 @@ export default function GameBoard() {
                     <div className='w-full max-w-sm bg-zinc-950 border border-zinc-800 p-6 rounded flex flex-col gap-5 shadow-2xl'>
                         <div className='flex justify-between items-center border-b border-zinc-900 pb-3'>
                             <span className='text-zinc-400 font-bold uppercase tracking-wider text-[10px]'>OIL REFINING</span>
-                            <span className='text-amber-700 font-bold animate-pulse text-[9px]'>solaris</span>
+                            <span className='text-amber-700 font-bold animate-pulse text-[9px]'>SOLARIS</span>
                         </div>
 
                         <div className='flex flex-col gap-3 w-full'>
@@ -376,6 +457,70 @@ export default function GameBoard() {
                     </div>
                 </div>
             )}
+
+            {isForging && (
+                <div className='fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 font-mono text-xs select-none animate-fadeIn'>
+                    <div className='w-full max-w-sm bg-zinc-950 border border-zinc-800 p-6 rounded flex flex-col gap-5 shadow-2xl'>
+                        <div className='flex justify-between items-center border-b border-zinc-900 pb-3'>
+                            <span className='text-zinc-400 font-bold uppercase tracking-wider text-[10px]'>FORGING ALLOY</span>
+                            <span className='text-amber-700 font-bold animate-pulse text-[9px]'>SOLARIS</span>
+                        </div>
+
+                        <div className='flex justify-between items-center px-1'>
+                            <span className='text-zinc-500 text-[10px]'>THRESHOLD</span>
+                            <div className='flex gap-2'>
+                                {[1, 2, 3].map((s) => (
+                                    <div
+                                        key={s}
+                                        className={`w-3 h-3 border rounded-sm transition-all duration-150 ${
+                                            forgeStrikes >=s
+                                                ? 'bg-emerald-500 border-emerald-400 shadow-[0_0_8px_rgba(245,158,11,0.6)]'
+                                                : 'bg-zinc-900 border-zinc-800'
+                                        }`}
+                                    />
+                                ))}   
+                            </div>
+                        </div>
+                        <div className='flex flex-col gap-1 w-full'>
+                            <div className='w-full h-10 bg-zinc-900 border border-zinc-800 rounded relative overflow-hidden'>
+                                <div
+                                    className='absolute top-0 bottom-0 bg-amber-500/20 border-x border-amber-500/60'
+                                    style={{
+                                        left: `${targetMin}%`,
+                                        width: `${targetMax - targetMin}%`
+                                    }}
+                                />
+                                <div
+                                    className='absolute top-0 bottom-0 w-1 bg-white shadow-[0_0_8px_rgba(255,255,255,1)]'
+                                    style={{ left: `${forgeCharge}%`}}
+                                />
+                            </div>
+                        </div>
+                        
+                        <div className='text-[10px] text-zinc-500 text-center italic leading-normal px-2'>
+                            actuate water quench when the temperature is within the threshold meter three times
+                        </div>
+                        
+                        <div className='flex flex-col gap-2'>
+                            <button
+                                onClick={handleForgeStrike}
+                                className='w-full bg-zinc-950 hover:bg-amber-900 border border-amber-700 text-amber-200 py-4 rounded active:scale-[0.99] transition-all cursor-pointer font-bold tracking-wider upopercase text-[11px]'
+                            >
+                                quench alloy
+                            </button>
+                            <button
+                                onClick={() => setIsForging(false)}
+                                className='w-full text-center text-[10px] text-zinc-600 hover:text-zinc-400 transition-colors pt-1 cursor-pointer'
+                            >
+                                abort forge
+                            </button>
+                        </div>
+                    </div>
+
+
+                </div>
+            )}
+
         </main>
     );
 }

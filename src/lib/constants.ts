@@ -15,12 +15,13 @@ export const RESOURCES = [
     'petrochemicals',
     'heavyResidue',
     'petroleumCoke',
+    'refinedAlloy',
 ] as const;
 export type Resource = typeof RESOURCES[number];
 
 export const COOLDOWNS: Record<string, number> = {
     scavengeMetal: 3600,
-    salvageTechTrash: 6700,
+    salvageTechTrash: 5600,
     craftCircuitry: 6700,
     craftBattery: 9000,
     operatePumpjack: 10000,
