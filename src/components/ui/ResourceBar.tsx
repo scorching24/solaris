@@ -20,10 +20,12 @@ const RESOURCE_LABELS: Partial<Record<keyof Resources, string>> = {
     heavyResidue: 'heavyResidue',
     petroleumCoke: 'petroleumCoke',
     refinedAlloy: 'refinedAlloy',
+    plastic: 'plastic',
 };
 
 const PLANET_RESOURCES: Record<string, (keyof Resources)[]> = {
-    earth: ['scrapMetal', 'techTrash', 'copperWire', 'silicon', 'circuitry', 'battery', 'copperPiping', 'crudeOil', 'petrochemicals', 'heavyResidue', 'petroleumCoke', 'refinedAlloy'],
+    earth: ['scrapMetal', 'techTrash', 'copperWire', 'silicon', 'circuitry', 'battery', 'copperPiping', 'crudeOil', 'petrochemicals', 'heavyResidue', 'petroleumCoke',
+          'refinedAlloy', 'plastic',],
 };
 
 export default function ResourceBar({

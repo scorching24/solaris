@@ -73,6 +73,11 @@ export function useGameState() {
             currentLog = addLog(currentLog, 'refine alloy can now be forged using new detected chemicals!')
         }
 
+        if (!u.synthesizePlastic && u.synthesizePlastic) {
+            u.synthesizePlastic = true;
+            currentLog = addLog(currentLog, 'plastic synthesis is now available given your resources!')
+        }
+
         return { unlocks: u, log: currentLog };
         
     }, []);
@@ -184,7 +189,8 @@ export function useGameState() {
                     next.resources.petroleumCoke += 5;
                     next.resources.heavyResidue += 3;
                     next.unlocks.forgeRefinedAlloy = true;
-                    message = 'you successfully refined the crude oil.'
+                    next.unlocks.synthesizePlastic = true;
+                    message = 'you successfully refined the crude oil, refined alloy and plastic is now possible!'
                     break;
                 
                 case 'forgeRefinedAlloy':
@@ -199,7 +205,17 @@ export function useGameState() {
                     next.resources.refinedAlloy += 67;
                     message = 'the refined alloy was forged successfully!'
                     break;
-                    
+                
+                case 'synthesizePlastic':
+                    if (next.resources.petrochemicals < 3 || next.resources.silicon < 2) {
+                        return prev;
+                    }
+
+                case 'synthesizePlasticSuccess':
+                    next.resources.petrochemicals -= 3;
+                    next.resources.silicon -= 2;
+                    next.resources.plastic += 67;
+                    break;
                 default:
                     return prev;
                 

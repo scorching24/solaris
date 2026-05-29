@@ -15,10 +15,11 @@ const EARTH_FIELD_BUTTONS = [
     { label: 'operate pumpjack [1 battery]', actionId: 'operatePumpjack'},
     { label: 'refine crude oil [15 crude]', actionId: 'refineCrudeOil'},
     { label: 'forge refined alloy [15 scrap, 2 petroleum coke, 1 heavy residue]', actionId: 'forgeRefinedAlloy'},
+    { label: 'synthesize plastic [3 petrochemicals, 2 silicon]', actionId: 'synthesizePlastic'},
 ];
 
 const EARTH_CRAFTING_BUTTONS = [
-    { label : 'craft circuitry [2 wire, 2 silicon]', actionId: 'craftCircuitry' },
+    { label: 'craft circuitry [2 wire, 2 silicon]', actionId: 'craftCircuitry' },
     { label: 'craft battery [1 circuitry, 8 scrap metal, 3 silicon]', actionId: 'craftBattery'},
     { label: 'craft copper piping [7 scrap metal, 2 wire, 3 crude]', actionId: 'craftCopperPiping'},
     { label: 'craft cooling module [2 circuitry, 6 pipes, 1 battery]', actionId: 'craftCoolingModule'},
@@ -41,12 +42,22 @@ export default function GameBoard() {
     const [targetMin, setTargetMin] = useState<number>(60);
     const [targetMax, setTargetMax] = useState<number>(82);
 
+    const [isSynthesizing, setIsSynthesizing] = useState<boolean>(false);
+    const [simonSequence, setSimonSequence] = useState<number[]>([]);
+    const [playerSequence, setPlayerSequence] = useState<number[]>([]);
+    const [activeFlashIdx, setActiveFlashIdx] = useState<number | null>(null);
+    const [simonRound, setSimonRound] = useState<number>(1);
+    const TARGET_ROUNDS = 5;
+    
+
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const currentTrackIndexRef = useRef<number>(0);
     const activePlanetRef = useRef<string>('');
     const isMutedRef = useRef<boolean>(false);
     const isPressingRef = useRef<boolean>(false);
     const minigameFrameRef = useRef<number | null>(null);
+
+    const audioCtxRef = useRef<AudioContext | null>(null);
 
     const barPosRef = useRef<number>(40);
     const barVelocityRef = useRef<number>(0);
@@ -231,6 +242,32 @@ export default function GameBoard() {
         };    
     }, [isForging]);
 
+    useEffect(() => {
+        if (!isSynthesizing || simonSequence.length === 0) return;
+
+        let currentStep = 0;
+
+        const playNextFlash = () => {
+            if (currentStep >= simonSequence.length) {
+                setActiveFlashIdx(null);
+                return;
+            }
+
+            const targetPad = simonSequence[currentStep];
+            setActiveFlashIdx(targetPad);
+            playSimonTone(targetPad);
+
+            setTimeout(() => {
+                setActiveFlashIdx(null);
+                currentStep++;
+                setTimeout(playNextFlash, 200);
+            }, 100);
+        };
+
+        const initialDelay = setTimeout(playNextFlash, 300);
+        return () => clearTimeout(initialDelay);
+    }, [simonSequence, isSynthesizing]);
+
     const generateNewForgeWindow = () => {
         const min = Math.floor(Math.random() * 50) + 15;
         setTargetMin(min);
@@ -262,6 +299,114 @@ export default function GameBoard() {
         }
     };
 
+    const playSimonTone = (padIndex: number) => {
+        if (isMutedRef.current) return;
+        try {   
+            if (!audioCtxRef.current) {
+                const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+                audioCtxRef.current = new AudioContextClass();
+            }
+            
+            const ctx = audioCtxRef.current;
+            
+            if (ctx.state === 'suspended') {
+                ctx.resume();
+            }
+
+            const osc = ctx.createOscillator();
+            const gainNode = ctx.createGain();
+
+            const frequencies = [329.63, 261.63, 220.00, 164.81];
+            osc.frequency.setValueAtTime(frequencies[padIndex] || 220, ctx.currentTime);
+            osc.type = 'sine';
+
+            gainNode.gain.setValueAtTime(0.1, ctx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+
+            osc.connect(gainNode);
+            gainNode.connect(ctx.destination);
+
+            osc.start();
+            osc.stop(ctx.currentTime + 0.4);
+        } catch (e) {
+            console.error("audio synthesis failed", e);
+        }
+    };
+
+    const playFailTone = () => {
+        if (isMutedRef.current) return;
+        try {
+            if (!audioCtxRef.current) {
+                const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+                audioCtxRef.current = new AudioContextClass();
+            }
+            const ctx = audioCtxRef.current;
+            if (ctx.state === 'suspended') ctx.resume();
+
+            const osc = ctx.createOscillator();
+            const gainNode = ctx.createGain();
+
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(120, ctx.currentTime);
+            osc.frequency.linearRampToValueAtTime(60, ctx.currentTime + 0.3);
+
+            gainNode.gain.setValueAtTime(0.15, ctx.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+
+            osc.connect(gainNode);
+            gainNode.connect(ctx.destination);
+
+            osc.start();
+            osc.stop(ctx.currentTime + 0.3);
+        } catch (e) {
+            console.error("audio synthesis failed", e);
+        }
+    };
+
+    const resetSimonGame = () => {
+        setPlayerSequence([]);
+        setSimonRound(1);
+        setSimonSequence([Math.floor(Math.random() *4)]);
+    };
+
+    const startSimonGame = () => {
+        setIsSynthesizing(true);
+        setSimonRound(1);
+        setPlayerSequence([]);
+        const firstPad = Math.floor(Math.random()*4);
+        setSimonSequence([firstPad]);
+    };
+
+    const handleSimonPadClick = (padIndex: number) => {
+        if (activeFlashIdx !== null) return;
+
+        const updatedPlayerSeq = [...playerSequence, padIndex];
+        setPlayerSequence(updatedPlayerSeq);
+
+        const currentMoveIdx = updatedPlayerSeq.length - 1;
+        if (updatedPlayerSeq[currentMoveIdx] !== simonSequence[currentMoveIdx]) {
+            playFailTone();
+            resetSimonGame();
+            return;
+        }
+
+        if (updatedPlayerSeq.length === simonSequence.length) {
+            if (simonRound >= TARGET_ROUNDS) {
+                doAction('synthesizePlasticSuccess');
+                setIsSynthesizing(false);
+                resetSimonGame();
+            } else {
+                setPlayerSequence([]);
+                setSimonRound(prev => prev + 1);
+
+                setTimeout(() => {
+                    const nextRandomPad = Math.floor(Math.random() * 4);
+                    setSimonSequence(prev => [...prev, nextRandomPad]);
+                }, 800);
+            }
+        }
+    }
+
     const isUnlocked = (actionId: string): boolean => {
         switch (actionId) {
             case 'scavengeMetal': return true;
@@ -273,6 +418,7 @@ export default function GameBoard() {
             case 'craftCoolingModule': return state.unlocks.craftCoolingModule;
             case 'refineCrudeOil': return state.unlocks.refineCrudeOil;
             case 'forgeRefinedAlloy': return state.unlocks.forgeRefinedAlloy;
+            case 'synthesizePlastic': return state.unlocks.synthesizePlastic;
             default: return false;
         }
     };
@@ -298,6 +444,8 @@ export default function GameBoard() {
                 return state.resources.crudeOil < 15;
             case 'forgeRefinedAlloy':
                 return state.resources.scrapMetal < 15 || state.resources.petroleumCoke < 2 || state.resources.heavyResidue < 1;
+            case 'synthesizePlastic':
+                return state.resources.petrochemicals < 3 || state.resources.silicon < 2;
             default: 
                 return false;
         }
@@ -313,6 +461,11 @@ export default function GameBoard() {
 
             if (actionId === 'forgeRefinedAlloy') {
                 setIsForging(true);
+                return;
+            }
+
+            if (actionId === 'synthesizePlastic') {
+                startSimonGame();
                 return;
             }
 
@@ -516,8 +669,53 @@ export default function GameBoard() {
                             </button>
                         </div>
                     </div>
+                </div>
+            )}
 
+            {isSynthesizing && (
+                <div className='fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 font-mono text-xs select-none animate-fadeIn'>
+                    <div className='w-full max-w-sm bg-zinc-950 border border-zinc-800 p-6 rounded flex flex-col gap-5 shadow-2xl'>
+                        <div className='flex justify-between items-center border-b border-zinc-900 pb-3'>
+                            <span className='text-zinc-400 font-bold tracking-wider text-[10px]'>plastic synthesis</span>
+                            <span className='text-amber-700 font-bold animate-pulse text-[9px]'>SOLARIS</span>
+                        </div>
 
+                        <div className='grid grid-cols-2 gap-3 aspect-square my-2 w-full'>
+                            {[
+                                { color: 'border-red-900 bg-red-950/30 text-red-400 hover:bg-red-500/40', flash: 'bg-red-500 text-white border-red-400' },
+                                { color: 'border-blue-900 bg-blue-950/30 text-blue-400 hover:bg-blue-500/40', flash: 'bg-blue-500 text-white border-blue-400' },
+                                { color: 'border-green-900 bg-green-950/30 text-green-400 hover:bg-green-500/40', flash: 'bg-green-500 text-white border-green-400' },
+                                { color: 'border-yellow-900 bg-yellow-950/30 text-yellow-400 hover:bg-yellow-500/40', flash: 'bg-yellow-500 text-white border-yellow-400' }
+                            ].map((pad, idx) => {
+                                const isFlashing = activeFlashIdx === idx;
+                                return (
+                                    <button
+                                        key={idx}
+                                        disabled={activeFlashIdx !== null}
+                                        className={`border rounded-lg transition-all duration-100 flex items-center justify-center font-bold text-sm h-full 
+                                            ${activeFlashIdx !== null ? 'cursor-default' : 'cursor-pointer active:scale-[0.97]'} 
+                                            ${isFlashing ? pad.flash : pad.color}`}
+                                        onClick={() => {
+                                            playSimonTone(idx);
+                                            handleSimonPadClick(idx);
+                                        }}
+                                    >
+                                        0{idx + 1}
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        <button
+                            onClick={() => {
+                                setIsSynthesizing(false);
+                                resetSimonGame();
+                            }}
+                            className='w-full text-center text-[10px] text-zinc-600 hover:text-zinc-400 transition-colors pt-1 cursor-pointer border-t border-zinc-900 mt-2'
+                        >
+                            abort synthesis
+                        </button>
+                    </div>
                 </div>
             )}
 

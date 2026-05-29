@@ -28,4 +28,9 @@ A minimalist, text-based post-apocalyptic incremental game built with Next.js, R
 - Added timing-based minigame for refining alloys
 - Stylized the title
 
+### 0.1.4 - 5/29/26:
+- Added the synthesizing of plastic
+- Added a memory minigame for plastic
+- Added sound effects
+
 

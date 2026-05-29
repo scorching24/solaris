@@ -16,6 +16,7 @@ export const RESOURCES = [
     'heavyResidue',
     'petroleumCoke',
     'refinedAlloy',
+    'plastic',
 ] as const;
 export type Resource = typeof RESOURCES[number];
 

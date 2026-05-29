@@ -12,6 +12,7 @@ export type Unlocks = {
     craftedCoolingModule: boolean;
     refineCrudeOil: boolean;
     forgeRefinedAlloy: boolean;
+    synthesizePlastic: boolean;
     mars: boolean;
 };
 
@@ -39,6 +40,7 @@ export const initialState: GameState = {
         heavyResidue: 0,
         petroleumCoke: 0,
         refinedAlloy: 0,
+        plastic: 0,
     },
     unlocks: {
         salvageTechTrash: false,
@@ -50,6 +52,7 @@ export const initialState: GameState = {
         craftedCoolingModule: false,
         refineCrudeOil: false,
         forgeRefinedAlloy: false,
+        synthesizePlastic: false,
         mars: false,
     },
     cooldowns: {},
